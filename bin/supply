@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# bin/supply: Download and install Apache Maven into the CF deps directory
+# so that 'mvn' is available in PATH for any shell subprocess (e.g. Goose agent)
+
+set -e
+set -o pipefail
+
+BUILD_DIR=$1
+CACHE_DIR=$2
+DEPS_DIR=$3
+INDEX=$4
+
+MVN_VERSION="3.9.9"
+MVN_ARCHIVE="apache-maven-${MVN_VERSION}-bin.tar.gz"
+MVN_URL="https://archive.apache.org/dist/maven/maven-3/${MVN_VERSION}/binaries/${MVN_ARCHIVE}"
+INSTALL_DIR="${DEPS_DIR}/${INDEX}"
+CACHE_FILE="${CACHE_DIR}/${MVN_ARCHIVE}"
+
+echo "-----> Maven Buildpack"
+echo "       Installing Apache Maven ${MVN_VERSION}..."
+
+mkdir -p "${INSTALL_DIR}" "${CACHE_DIR}"
+
+# Download (or use cached copy)
+if [ -f "${CACHE_FILE}" ]; then
+    echo "       Using cached archive"
+else
+    echo "       Downloading ${MVN_URL}"
+    curl -sL "${MVN_URL}" -o "${CACHE_FILE}"
+fi
+
+# Extract into deps dir
+tar -xzf "${CACHE_FILE}" -C "${INSTALL_DIR}"
+mv "${INSTALL_DIR}/apache-maven-${MVN_VERSION}" "${INSTALL_DIR}/maven"
+
+# Write profile.d script so PATH and M2_HOME are set at container startup
+# CF sources every $DEPS_DIR/*/profile.d/*.sh automatically
+mkdir -p "${INSTALL_DIR}/profile.d"
+cat > "${INSTALL_DIR}/profile.d/maven.sh" <<PROFILE
+export M2_HOME="\$DEPS_DIR/${INDEX}/maven"
+export PATH="\$M2_HOME/bin:\$PATH"
+export MAVEN_OPTS="-Xmx512m"
+PROFILE
+
+echo "       Apache Maven ${MVN_VERSION} installed"
+echo "       mvn binary: ${INSTALL_DIR}/maven/bin/mvn"

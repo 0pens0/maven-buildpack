@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# Supply-only buildpack — always declines detection
+exit 1

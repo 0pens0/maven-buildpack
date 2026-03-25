@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Supply-only buildpack — release is a no-op
+echo "---"
+echo "default_process_types:"
+echo "  web: echo ok"
