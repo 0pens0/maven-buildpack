@@ -33,13 +33,20 @@ fi
 tar -xzf "${CACHE_FILE}" -C "${INSTALL_DIR}"
 mv "${INSTALL_DIR}/apache-maven-${MVN_VERSION}" "${INSTALL_DIR}/maven"
 
-# Write profile.d script so PATH and M2_HOME are set at container startup
-# CF sources every $DEPS_DIR/*/profile.d/*.sh automatically
-mkdir -p "${INSTALL_DIR}/profile.d"
-cat > "${INSTALL_DIR}/profile.d/maven.sh" <<PROFILE
+# Write profile.d script to BUILD_DIR/.profile.d/ — CF reliably sources this location
+# at container startup (same pattern used by the goose-buildpack).
+# Also set JAVA_HOME so Maven can find the JRE provided by java_buildpack_offline.
+mkdir -p "${BUILD_DIR}/.profile.d"
+cat > "${BUILD_DIR}/.profile.d/maven.sh" <<PROFILE
 export M2_HOME="\$DEPS_DIR/${INDEX}/maven"
 export PATH="\$M2_HOME/bin:\$PATH"
 export MAVEN_OPTS="-Xmx512m"
+
+# Point Maven at the JRE installed by java_buildpack_offline if JAVA_HOME is not set
+if [ -z "\$JAVA_HOME" ] && [ -d "/home/vcap/app/.java-buildpack/open_jdk_jre" ]; then
+    export JAVA_HOME="/home/vcap/app/.java-buildpack/open_jdk_jre"
+    export PATH="\$JAVA_HOME/bin:\$PATH"
+fi
 PROFILE
 
 echo "       Apache Maven ${MVN_VERSION} installed"
